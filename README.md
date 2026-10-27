@@ -1,16 +1,24 @@
 # MyMusic
 
-A music streaming app for iOS and Android with a Spotify-style interface, built on
-**React Native (Expo)**, **Node.js + Express**, **MongoDB** and **Stripe**, plus a web
-**admin dashboard**.
+A music streaming service with a Spotify-style interface: a **web app**, **iOS and Android
+apps** (React Native / Expo) and an **admin dashboard**, all backed by one **Node.js + Express**
+web server with **MongoDB** and **Stripe**.
+
+One server process serves everything from one address:
+
+| URL | What |
+|---|---|
+| `/` | The MyMusic web app (listen in any browser) |
+| `/admin` | The admin dashboard |
+| `/api/v1/…` | The API used by the web app, the mobile apps and the dashboard |
 
 MyMusic plays two kinds of content, and treats each according to its rights:
 
 | | Licensed catalog | YouTube |
 |---|---|---|
 | What it is | Audio the app owner owns or has licensed, uploaded by admins with licence metadata | Public, embeddable music videos found through the YouTube Data API |
-| Playback | Native audio player: background play, lock screen, headset controls | The official YouTube embedded player only, visible on screen |
-| Offline | Yes, for Premium users, when the licence allows it; encrypted on device | Never |
+| Playback | Browser audio / native audio player: background play, media keys, lock screen | The official YouTube embedded player only, visible on screen |
+| Offline | Mobile apps only, for Premium users, when the licence allows it; encrypted on device | Never |
 | Stored by us | Audio file, metadata, rights | Only the video id; metadata is re-fetched from YouTube |
 
 ## Features
@@ -29,43 +37,68 @@ MyMusic plays two kinds of content, and treats each according to its rights:
 
 ```
 mymusic/
-├── server/   Express API (Node 22, MongoDB/Mongoose, Stripe, S3, YouTube Data API)
+├── server/   Express web server: API + serves web/ and admin/ builds (Node 22, MongoDB, Stripe, S3, YouTube)
+├── web/      Web app (React + Vite): the listening experience in the browser
+├── admin/    Admin dashboard (React + Vite), served at /admin
 ├── mobile/   Expo SDK 54 app (expo-router, react-native-track-player, react-query, zustand)
-├── admin/    React + Vite admin dashboard
 ├── docs/     Architecture, database schema, API reference, deployment, compliance
-└── docker-compose.yml   Local MongoDB + MinIO + API
+├── Dockerfile           One image: API + web app + admin
+├── docker-compose.yml   Local MongoDB + MinIO + the web server
+└── render.yaml          One-click deploy on Render
 ```
 
-## Quick start (local)
+## Run it locally (web)
 
-Prerequisites: Node 22+, Docker (or a local MongoDB), Xcode and/or Android Studio for device builds.
+Prerequisites: [Node.js 22+](https://nodejs.org) and [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
-# 1. API
-cd server
+git clone https://github.com/Ayenew-Tadesse/mymusic
+cd mymusic/server
 cp .env.example .env
-# fill JWT_ACCESS_SECRET, JWT_REFRESH_SECRET (48 random bytes each) and OFFLINE_KEY_SECRET (32 random bytes, hex)
-node -e "const c=require('crypto');console.log(c.randomBytes(48).toString('base64url'));console.log(c.randomBytes(48).toString('base64url'));console.log(c.randomBytes(32).toString('hex'))"
-cd .. && docker compose up --build -d      # MongoDB, MinIO and the API on :4000
+# Generate secrets and paste the three printed lines into server/.env:
+node -e "const c=require('crypto');console.log('JWT_ACCESS_SECRET='+c.randomBytes(48).toString('base64url'));console.log('JWT_REFRESH_SECRET='+c.randomBytes(48).toString('base64url'));console.log('OFFLINE_KEY_SECRET='+c.randomBytes(32).toString('hex'))"
+cd ..
+docker compose up --build -d
 docker compose exec -e ADMIN_PASSWORD='choose-a-long-password' api npm run seed:admin -- you@example.com "Your Name"
+```
 
-# 2. Admin dashboard
-cd admin && cp .env.example .env && npm install && npm run dev   # http://localhost:5173
+Then open:
 
-# 3. Mobile app (needs a development build because of native modules)
+- **http://localhost:4000**: the web app (sign up or log in)
+- **http://localhost:4000/admin**: the admin dashboard (log in with the admin account), where you add artists, albums and tracks
+
+YouTube search, Google / Apple sign-in and subscriptions switch on once you add their keys to
+`server/.env` (see [DEPLOYMENT.md](docs/DEPLOYMENT.md)).
+
+### Without Docker
+
+Run MongoDB yourself and set `MONGODB_URI` in `server/.env`, then from the repo root:
+
+```bash
+npm run install:all
+npm run build        # builds web/ and admin/
+npm start            # http://localhost:4000
+```
+
+For development with hot reload run `npm run dev:server`, `npm run dev:web` (http://localhost:5174)
+and `npm run dev:admin` (http://localhost:5173/admin/) in three terminals; the dev servers proxy
+`/api` to the API.
+
+### Mobile apps
+
+```bash
 cd mobile && cp .env.example .env && npm install
 npx expo run:ios        # or: npx expo run:android
 ```
 
-Without Docker: run MongoDB yourself, set `MONGODB_URI`, then `cd server && npm install && npm run dev`.
-
-Point `EXPO_PUBLIC_API_URL` at your machine's LAN IP when running on a physical device.
+Point `EXPO_PUBLIC_API_URL` at your computer's LAN IP (e.g. `http://192.168.1.20:4000`) when using a real phone.
 
 ## Tests and checks
 
 ```bash
 cd server && npm test            # API integration tests (in-memory MongoDB, or set MONGODB_TEST_URI)
 cd server && npm run test:unit   # tests that need no database
+cd web && npm run lint && npm run build
 cd admin && npm run lint && npm run build
 cd mobile && npx tsc --noEmit && npx expo lint
 ```
@@ -85,6 +118,8 @@ CI runs all of these on every push (`.github/workflows/ci.yml`).
   subscription is not built yet.
 - **Purchases inside the apps** use Stripe Checkout where store rules allow it (see
   [COMPLIANCE.md](docs/COMPLIANCE.md)); StoreKit / Play Billing are not integrated.
+- **Offline downloads** are a mobile app feature; the web app streams only, since browsers can't
+  keep licensed files encrypted with keys the user can't extract.
 - **Offline protection** is AES-256-GCM encryption at rest with keys in the OS keystore, not
   Widevine / FairPlay DRM. If a licensor requires studio DRM, add a DRM packaging step.
 - **Rate limits** are in-memory per instance; use a shared store when scaling out.

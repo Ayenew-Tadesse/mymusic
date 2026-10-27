@@ -28,9 +28,9 @@ and plays them only through the **official embedded player**.
 | Policy point | Implementation |
 |---|---|
 | No downloading, caching or extracting audio / video | YouTube items are never downloadable; there is no code path that fetches YouTube media. Offline features are catalog only. |
-| Play only through the embedded player, unmodified, with YouTube branding and controls | `mobile/src/player/YouTubeView.tsx` renders the IFrame player with `controls: true`; nothing overlays it. |
-| No background or audio-only playback | YouTube plays only while the Now Playing screen is visible; the app pauses it when the screen closes or the app is backgrounded, and the queue never auto-advances into YouTube in the background. |
-| Player size | The embed is at least 200 px high and uses the full content width. |
+| Play only through the embedded player, unmodified, with YouTube branding and controls | Mobile: `mobile/src/player/YouTubeView.tsx`; web: `web/src/player/YouTubeDock.tsx`. Both render the official IFrame player with its controls; nothing overlays it. |
+| No background or audio-only playback | Mobile: YouTube plays only while the Now Playing screen is visible and pauses when the app is backgrounded. Web: the player is docked on screen whenever a video is current, never hidden or reduced to audio. On both, the queue never auto-starts a YouTube video while the app / tab is in the background. |
+| Player size | The embed is 16:9, at least 200 px high (mobile: full content width; web: 400 px wide dock, full width on phones). |
 | Only playable content | Search requests `videoEmbeddable=true`, `videoSyndicated=true`; results are re-checked for `status.embeddable` and public privacy status. |
 | Stored API data limits | Only video ids are stored in playlists, favorites and history. Metadata is cached for one hour by default (TTL index) and re-fetched on read. Deleting an account deletes the ids. |
 | API key security | The key lives only on the server; clients call the MyMusic API. |

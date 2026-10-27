@@ -1,9 +1,13 @@
 # Deployment
 
 Production setup: **MongoDB Atlas**, **S3-compatible storage** (AWS S3 or Cloudflare R2),
-the **API as a Docker container** (Render, Fly.io, Railway, AWS ECS / App Runner, Google
-Cloud Run all work), the **admin dashboard on a static host**, and the **mobile apps built
-and submitted with EAS**.
+**one Docker container** that serves the API, the web app (`/`) and the admin dashboard
+(`/admin`) (Render, Fly.io, Railway, AWS ECS / App Runner and Google Cloud Run all work), and
+the **mobile apps built and submitted with EAS**.
+
+**Fastest path: Render.** Push the repo to GitHub, then in Render choose *New → Blueprint* and
+pick the repo. `render.yaml` creates the web service from the root `Dockerfile`; fill in the
+variables it asks for (MongoDB URI, storage, keys), deploy, and open the service URL.
 
 ## 1. Generate secrets
 
@@ -93,22 +97,25 @@ Any SMTP provider (Amazon SES, Postmark, SendGrid, Mailgun). Set
 `SMTP_URL=smtps://USER:PASS@smtp.example.com:465` and `MAIL_FROM`. Configure SPF, DKIM and DMARC
 for the sending domain.
 
-## 8. API
+## 8. Web server (API + web app + admin)
 
-Build and run the container from `server/`:
+Build and run the single image from the repository root:
 
 ```bash
-docker build -t mymusic-api ./server
-docker run --env-file server/.env.production -p 4000:4000 mymusic-api
+docker build -t mymusic .
+docker run --env-file server/.env.production -p 4000:4000 mymusic
 ```
+
+The image builds `web/` and `admin/` and the server serves them at `/` and `/admin`
+(`WEB_DIST_DIR` / `ADMIN_DIST_DIR`). Without Docker: `npm run install:all && npm run build && npm start`.
 
 Required production variables: everything in `server/.env.example`; the server refuses to boot
 in production without the YouTube key, Stripe keys, bucket, SMTP and encryption key.
 
 Platform notes:
 
-- **Render**: Web Service → Docker, root `server`, health check path `/readyz`,
-  pre-deploy command `npm run db:indexes`.
+- **Render**: use the `render.yaml` Blueprint (Docker, health check `/readyz`, pre-deploy
+  `npm run db:indexes`).
 - **Fly.io**: `fly launch` in `server/`, `[deploy] release_command = "npm run db:indexes"`,
   HTTP check on `/readyz`.
 - **AWS**: ECR + ECS Fargate (or App Runner) behind an ALB with TLS; secrets from Secrets Manager.
@@ -120,7 +127,12 @@ Always:
 - Put the API behind Cloudflare (or set `x-country-code` at your load balancer) so
   `CF-IPCountry` is available for territory licensing.
 - With more than one instance, back the rate limiters with Redis (`rate-limit-redis`).
-- Set `CORS_ORIGINS=https://admin.mymusic.app` and `PUBLIC_API_URL=https://api.mymusic.app`.
+- Set `PUBLIC_API_URL` to the public address of the server (e.g. `https://mymusic.app`); share
+  links, email links and Stripe return pages use it. `CORS_ORIGINS` is only needed if you host
+  a front end on a different origin.
+- For **Google sign-in on the web** create a *Web application* OAuth client with your domain as
+  an authorised JavaScript origin and set `GOOGLE_WEB_CLIENT_ID`. For **Sign in with Apple on
+  the web** create a Services ID with your domain and return URL and set `APPLE_WEB_SERVICES_ID`.
 - Logs are JSON on stdout (pino) with auth headers, cookies and tokens redacted; ship them to
   your log platform and alert on 5xx rates.
 
@@ -130,19 +142,17 @@ Create the first admin once the API is up:
 ADMIN_PASSWORD='a long unique password' npm run seed:admin -- admin@mymusic.app "Admin"
 ```
 
-## 9. Admin dashboard
+## 9. Web app and admin dashboard
 
-```bash
-cd admin
-VITE_API_URL=https://api.mymusic.app npm run build   # outputs dist/
-```
+Both are served by the web server above; nothing extra to deploy. The server's
+Content-Security-Policy allows only this origin plus the YouTube player, Google / Apple
+sign-in and your storage hosts. Consider restricting `/admin` to your company network or
+putting it behind an SSO proxy (Cloudflare Access, Google IAP).
 
-Deploy `dist/` to Netlify, Cloudflare Pages, Vercel or S3 + CloudFront. `public/_headers`
-holds a strict CSP and security headers; edit `connect-src` to your API and storage hosts.
-`public/_redirects` sends deep links to the SPA. Serve it on a sibling subdomain of the API
-(e.g. `admin.mymusic.app` and `api.mymusic.app`) so the `SameSite=Strict` refresh cookie works.
-Consider restricting the admin host to your company network or putting it behind an SSO proxy
-(Cloudflare Access, Google IAP).
+To host them separately on a static host instead, build with `VITE_API_URL=https://api.example.com`
+(admin) and proxy `/api` to the API (web), then set `CORS_ORIGINS`. Keep them on a sibling
+subdomain of the API so the `SameSite=Strict` refresh cookie works. `admin/public/_headers` has
+security headers for Netlify / Cloudflare Pages.
 
 ## 10. Mobile apps (EAS)
 

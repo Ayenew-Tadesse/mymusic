@@ -71,7 +71,8 @@ describe('HTTP layer without a database', () => {
   test('security headers are set', async () => {
     const res = await api.get('/healthz');
     expect(res.headers['x-powered-by']).toBeUndefined();
-    expect(res.headers['content-security-policy']).toContain("default-src 'none'");
+    expect(res.headers['content-security-policy']).toContain("default-src 'self'");
+    expect(res.headers['content-security-policy']).toContain("frame-ancestors 'none'");
   });
   test('unknown routes are JSON 404s', async () => {
     expect((await api.get('/api/v1/nope')).status).toBe(404);
@@ -98,4 +99,10 @@ describe('server-rendered pages', () => {
   test('billing return pages', async () => {
     expect((await api.get('/billing/success')).status).toBe(200);
   });
+});
+
+test('public config exposes no secrets', async () => {
+  const res = await request(createApp()).get('/api/v1/config');
+  expect(res.status).toBe(200);
+  expect(Object.keys(res.body).sort()).toEqual(['appleServicesId', 'billingEnabled', 'googleClientId', 'youtubeEnabled']);
 });

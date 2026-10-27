@@ -12,7 +12,7 @@ import { HttpError } from '../utils/httpError.js';
 
 const router = Router();
 
-function page({ title, description = '', image, deepLink, body = '' }) {
+function page({ title, description = '', image, deepLink, webLink, body = '' }) {
   const t = escapeHtml(title);
   const d = escapeHtml(description);
   const img = image ? escapeHtml(image) : '';
@@ -27,7 +27,7 @@ h1{font-size:28px;margin:24px 0 8px}p{color:#b3b3b3}.btn,button{display:inline-b
 input{width:100%;box-sizing:border-box;padding:14px;border-radius:6px;border:1px solid #333;background:#242424;color:#fff;font-size:16px;margin-top:12px}.err{color:#f15e6c}</style>
 </head><body><main>${img ? `<img src="${img}" alt="">` : ''}<h1>${t}</h1>${d ? `<p>${d}</p>` : ''}${body}${
     deepLink ? `<a class="btn" href="${escapeHtml(deepLink)}">Open in MyMusic</a>` : ''
-  }</main></body></html>`;
+  }${webLink ? `<p><a href="${escapeHtml(webLink)}" style="color:#fff">or listen in your browser</a></p>` : ''}</main></body></html>`;
 }
 
 const send = (res, status, opts) => res.status(status).type('html').set('Cache-Control', 'no-store').send(page(opts));
@@ -43,6 +43,7 @@ router.get('/p/:shareId', async (req, res) => {
       description: `${p.description || 'Playlist'} · by ${p.owner?.displayName ?? 'MyMusic'} · ${p.items.length} songs`,
       image: p.coverUrl,
       deepLink: `mymusic://shared/${encodeURIComponent(p.shareId)}`,
+      webLink: `/shared/${encodeURIComponent(p.shareId)}`,
     }),
   );
 });
@@ -50,7 +51,12 @@ router.get('/p/:shareId', async (req, res) => {
 router.get('/invite/:token', (req, res) => {
   const token = tokenParam(req.params.token);
   if (!token) return send(res, 400, { title: 'Invalid invite' });
-  send(res, 200, { title: 'You’re invited to collaborate', description: 'Open MyMusic to join this playlist.', deepLink: `mymusic://invite/${encodeURIComponent(token)}` });
+  send(res, 200, {
+    title: 'You’re invited to collaborate',
+    description: 'Open MyMusic to join this playlist.',
+    deepLink: `mymusic://invite/${encodeURIComponent(token)}`,
+    webLink: `/join/${encodeURIComponent(token)}`,
+  });
 });
 
 // --- Email verification ----------------------------------------------------
@@ -60,7 +66,7 @@ router.get('/verify-email', authLimiter, async (req, res) => {
   try {
     if (!token) throw new HttpError(400, 'This link is invalid or has expired');
     await verifyEmailToken(token);
-    send(res, 200, { title: 'Email verified', description: 'Thanks! You can go back to the app.', deepLink: 'mymusic://' });
+    send(res, 200, { title: 'Email verified', description: 'Thanks! You can go back to the app.', deepLink: 'mymusic://', webLink: '/' });
   } catch (err) {
     send(res, 400, { title: 'Link expired', description: err instanceof HttpError ? err.message : 'Something went wrong.' });
   }
@@ -91,7 +97,7 @@ router.post('/reset-password', authLimiter, express.urlencoded({ extended: false
   if (!parsed.success) return send(res, 400, { title: 'Choose a new password', body: resetForm(token, parsed.error.issues[0].message) });
   try {
     await resetPasswordWithToken(token, parsed.data);
-    send(res, 200, { title: 'Password updated', description: 'You’ve been signed out everywhere. Log in with your new password.', deepLink: 'mymusic://' });
+    send(res, 200, { title: 'Password updated', description: 'You’ve been signed out everywhere. Log in with your new password.', deepLink: 'mymusic://', webLink: '/login' });
   } catch (err) {
     send(res, 400, { title: 'Link expired', description: err instanceof HttpError ? err.message : 'Something went wrong.' });
   }

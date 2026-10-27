@@ -147,10 +147,17 @@ Concurrent edits return 409 `edit_conflict`; reload and retry.
 | POST | `/users/:id/revoke-sessions` | |
 | GET | `/audit` | Audit log |
 
+## Config: `/config`
+
+`GET /config` → `{googleClientId, appleServicesId, youtubeEnabled, billingEnabled}` (public, no secrets). Used by the web app.
+
 ## Public pages (no `/api/v1` prefix)
 
 | Path | Purpose |
 |---|---|
 | `GET /p/:shareId` | Shared playlist preview with Open Graph tags and "Open in MyMusic" deep link |
 | `GET /invite/:token` | Collaborator invite landing page |
+| `GET /verify-email`, `GET/POST /reset-password` | Email verification and password reset pages |
+| `GET /billing/success`, `/billing/cancel`, `/billing/return` | Stripe return pages for the mobile apps |
 | `GET /healthz`, `GET /readyz` | Liveness and readiness (DB connected) probes |
+| `GET /`, `GET /admin/` | The web app and admin dashboard (any other non-API path falls back to the web app) |

@@ -6,7 +6,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
 import mongoose from 'mongoose';
-import env from './config/env.js';
+import env, { isProd } from './config/env.js';
 import logger from './config/logger.js';
 import { globalLimiter } from './middleware/rateLimit.js';
 import { requireAuth, requireAdmin } from './middleware/auth.js';
@@ -21,6 +21,9 @@ import downloadRoutes from './routes/downloads.js';
 import billingRoutes, { webhookRouter } from './routes/billing.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
+import configRoutes from './routes/config.js';
+import { storageOrigins } from './services/storage.js';
+import { mountStatic } from './static.js';
 
 export function createApp() {
   const app = express();
@@ -28,12 +31,33 @@ export function createApp() {
   app.set('trust proxy', env.TRUST_PROXY);
 
   app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/healthz' } }));
+  // One policy for the API, the web app and the admin dashboard. It allows the
+  // official YouTube embed and Google / Apple sign-in, plus the storage hosts
+  // that serve artwork and signed audio URLs.
+  const storage = storageOrigins();
   app.use(
     helmet({
       contentSecurityPolicy: {
-        directives: { defaultSrc: ["'none'"], imgSrc: ['https:', 'data:'], styleSrc: ["'unsafe-inline'"], frameAncestors: ["'none'"] },
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", 'https://www.youtube.com', 'https://s.ytimg.com', 'https://accounts.google.com/gsi/client', 'https://appleid.cdn-apple.com'],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://accounts.google.com/gsi/style'],
+          imgSrc: ["'self'", 'https:', 'data:', ...storage],
+          mediaSrc: ["'self'", 'https:', 'blob:', ...storage],
+          connectSrc: ["'self'", 'https://accounts.google.com/gsi/', ...storage, 'https://*.amazonaws.com', 'https://*.r2.cloudflarestorage.com'],
+          frameSrc: ['https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://accounts.google.com/gsi/', 'https://appleid.apple.com'],
+          frameAncestors: ["'none'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          upgradeInsecureRequests: isProd ? [] : null,
+        },
       },
+      // Google sign-in popups need to talk back to the opener.
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
       crossOriginResourcePolicy: { policy: 'same-site' },
+      // Lets YouTube see the embedding origin, which its player requires.
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }),
   );
   app.use(
@@ -71,6 +95,10 @@ export function createApp() {
   app.use('/api/v1/downloads', requireAuth, downloadRoutes);
   app.use('/api/v1/billing', billingRoutes);
   app.use('/api/v1/admin', requireAuth, requireAdmin, adminRoutes);
+  app.use('/api/v1/config', configRoutes);
+  app.use('/api/v1', notFoundHandler);
+
+  mountStatic(app);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

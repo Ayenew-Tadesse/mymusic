@@ -9,7 +9,8 @@ flowchart LR
     YT[YouTube IFrame player<br/>visible only]
     OFF[Offline manager<br/>AES-GCM files + keystore]
   end
-  Admin[Admin dashboard<br/>React + Vite]
+  Web[Web app<br/>React + Vite, served at /]
+  Admin[Admin dashboard<br/>React + Vite, served at /admin]
   API[Express API]
   DB[(MongoDB)]
   S3[(Private object storage<br/>S3 / R2 / MinIO)]
@@ -22,7 +23,8 @@ flowchart LR
   TP -- signed URL --> S3
   OFF -- signed URL --> S3
   UI -- HTTPS + Bearer --> API
-  Admin -- HTTPS + Bearer, httpOnly refresh cookie --> API
+  Web -- same origin, Bearer + httpOnly refresh cookie --> API
+  Admin -- same origin, Bearer + httpOnly refresh cookie --> API
   Admin -- presigned PUT --> S3
   API --> DB
   API --> YTAPI
@@ -130,6 +132,20 @@ sequenceDiagram
   `SameSite=Strict` cookie scoped to `/api/v1/auth` and the access token stays in memory.
 - **Password reset tokens** are bound to a fingerprint of the current password hash, so they
   are single use and die once the password changes.
+
+## Web app (`web/`)
+
+Same features as the mobile app except offline downloads. The Express server serves its build
+at `/` (and the admin build at `/admin`) with long-lived caching for hashed assets and an
+`index.html` fallback for client-side routes.
+
+- Sign-in: email / password, Google Identity Services and Sign in with Apple JS, all ending in
+  the same API session. The refresh token is an httpOnly `SameSite=Strict` cookie; the access
+  token stays in memory.
+- Playback: catalog tracks play in an `<audio>` element from signed URLs (refreshed
+  automatically if one expires mid-track), with Media Session support for media keys and OS
+  controls. YouTube videos play in the official IFrame player, docked on screen whenever one is
+  current. Queue, shuffle, repeat, sleep timer and volume live in a persisted zustand store.
 
 ## Playback design (mobile)
 

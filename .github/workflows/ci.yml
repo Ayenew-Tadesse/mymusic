@@ -20,6 +20,23 @@ jobs:
         env:
           MONGODB_TEST_URI: mongodb://localhost:27017
 
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t mymusic .
+
   admin:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: admin } }

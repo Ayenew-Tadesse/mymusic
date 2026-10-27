@@ -66,7 +66,7 @@ async function ensureCustomer(user) {
   return customer.id;
 }
 
-export async function createCheckoutSession(user, planId) {
+export async function createCheckoutSession(user, planId, platform = 'web') {
   const plan = planCatalog().find((p) => p.id === planId);
   if (!plan) throw new HttpError(400, 'Unknown plan');
   if (user.isPremium()) throw new HttpError(409, 'You already have an active subscription; manage it from the billing portal', 'already_subscribed');
@@ -78,17 +78,18 @@ export async function createCheckoutSession(user, planId) {
     line_items: [{ price: plan.priceId, quantity: 1 }],
     allow_promotion_codes: true,
     subscription_data: { metadata: { userId: user.id } },
-    success_url: `${env.PUBLIC_API_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.PUBLIC_API_URL}/billing/cancel`,
+    // The web app gets users straight back to its Premium page; apps get a page that deep links back.
+    success_url: platform === 'web' ? `${env.PUBLIC_API_URL}/premium?checkout=success` : `${env.PUBLIC_API_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: platform === 'web' ? `${env.PUBLIC_API_URL}/premium?checkout=cancelled` : `${env.PUBLIC_API_URL}/billing/cancel`,
   });
   return { url: session.url };
 }
 
-export async function createPortalSession(user) {
+export async function createPortalSession(user, platform = 'web') {
   if (!user.subscription?.stripeCustomerId) throw new HttpError(400, 'No billing account yet');
   const session = await getStripe().billingPortal.sessions.create({
     customer: user.subscription.stripeCustomerId,
-    return_url: `${env.PUBLIC_API_URL}/billing/return`,
+    return_url: platform === 'web' ? `${env.PUBLIC_API_URL}/premium` : `${env.PUBLIC_API_URL}/billing/return`,
   });
   return { url: session.url };
 }

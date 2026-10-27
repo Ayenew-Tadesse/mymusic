@@ -38,6 +38,9 @@ const schema = z.object({
   // OAuth audiences that the server accepts ID tokens for.
   GOOGLE_CLIENT_IDS: csv,
   APPLE_BUNDLE_IDS: csv, // iOS bundle id(s) and/or Services ID(s)
+  // Client ids the web app uses for "Sign in with Google" / "Sign in with Apple" (also accepted as audiences).
+  GOOGLE_WEB_CLIENT_ID: z.string().default(''),
+  APPLE_WEB_SERVICES_ID: z.string().default(''),
 
   // YouTube Data API v3 key. Server side only; never shipped to clients.
   YOUTUBE_API_KEY: z.string().default(''),
@@ -58,6 +61,8 @@ const schema = z.object({
   S3_BUCKET: z.string().default(''),
   S3_REGION: z.string().default('us-east-1'),
   S3_ENDPOINT: z.string().default(''), // set for R2 / MinIO / Spaces
+  // Host browsers use to reach storage, when it differs from S3_ENDPOINT (e.g. MinIO in docker-compose).
+  S3_PUBLIC_ENDPOINT: z.string().default(''),
   S3_ACCESS_KEY_ID: z.string().default(''),
   S3_SECRET_ACCESS_KEY: z.string().default(''),
   STREAM_URL_TTL_SECONDS: z.coerce.number().int().positive().default(600),
@@ -84,6 +89,10 @@ const schema = z.object({
   SMTP_URL: z.string().default(''),
   MAIL_FROM: z.string().default('MyMusic <no-reply@mymusic.app>'),
 
+  // Built web app and admin dashboard served by this process ('' disables).
+  WEB_DIST_DIR: z.string().default('../web/dist'),
+  ADMIN_DIST_DIR: z.string().default('../admin/dist'),
+
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(200),
 });
 
@@ -96,6 +105,9 @@ if (!parsed.success) {
 }
 
 const env = parsed.data;
+// Web client ids are valid audiences for ID tokens too.
+if (env.GOOGLE_WEB_CLIENT_ID && !env.GOOGLE_CLIENT_IDS.includes(env.GOOGLE_WEB_CLIENT_ID)) env.GOOGLE_CLIENT_IDS.push(env.GOOGLE_WEB_CLIENT_ID);
+if (env.APPLE_WEB_SERVICES_ID && !env.APPLE_BUNDLE_IDS.includes(env.APPLE_WEB_SERVICES_ID)) env.APPLE_BUNDLE_IDS.push(env.APPLE_WEB_SERVICES_ID);
 
 if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
   console.error('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must differ');

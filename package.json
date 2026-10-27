@@ -1,0 +1,15 @@
+{
+  "name": "mymusic",
+  "private": true,
+  "description": "MyMusic: one web server for the API, the web app (/) and the admin dashboard (/admin)",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "install:all": "npm ci --prefix server && npm ci --prefix web && npm ci --prefix admin",
+    "build": "npm run build --prefix web && npm run build --prefix admin",
+    "start": "npm start --prefix server",
+    "dev:server": "npm run dev --prefix server",
+    "dev:web": "npm run dev --prefix web",
+    "dev:admin": "npm run dev --prefix admin",
+    "test": "npm test --prefix server"
+  }
+}

@@ -1,0 +1,66 @@
+# Render Blueprint: deploys the single MyMusic web server (API + web app + admin).
+# Create a MongoDB Atlas cluster and an S3 / R2 bucket first, then fill the
+# "sync: false" variables in the Render dashboard.
+services:
+  - type: web
+    name: mymusic
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /readyz
+    preDeployCommand: npm run db:indexes
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_API_URL
+        sync: false # e.g. https://mymusic.onrender.com or your custom domain
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: OFFLINE_KEY_SECRET
+        sync: false # 64 hex characters
+      - key: DATA_ENCRYPTION_KEY
+        sync: false # 64 hex characters
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: GOOGLE_WEB_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_IDS
+        sync: false
+      - key: APPLE_BUNDLE_IDS
+        sync: false
+      - key: APPLE_WEB_SERVICES_ID
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PREMIUM_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_PREMIUM_YEARLY
+        sync: false
+      - key: STRIPE_PRICE_FAMILY_MONTHLY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: ASSET_PUBLIC_BASE_URL
+        sync: false
+      - key: SMTP_URL
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: WEB_DIST_DIR
+        value: ../web/dist
+      - key: ADMIN_DIST_DIR
+        value: ../admin/dist

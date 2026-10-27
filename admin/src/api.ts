@@ -5,7 +5,8 @@
  * cookie set by the API (requested with `X-Client: web`), so it's never
  * readable by scripts. Concurrent 401s share a single refresh request.
  */
-const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
+// Same origin by default (the API serves this dashboard at /admin); override for separate hosting.
+const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
 let accessToken: string | null = null;
 let refreshing: Promise<boolean> | null = null;

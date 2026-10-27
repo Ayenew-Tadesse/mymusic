@@ -27,11 +27,11 @@ router.post('/checkout', validate({ body: z.object({ planId: z.string().max(40),
   if (!purchaseAllowedOn(req.valid.body.platform)) {
     throw new HttpError(403, 'Subscriptions can’t be purchased in this app', 'purchase_not_allowed');
   }
-  res.json(await createCheckoutSession(req.user, req.valid.body.planId));
+  res.json(await createCheckoutSession(req.user, req.valid.body.planId, req.valid.body.platform));
 });
 
-router.post('/portal', async (req, res) => {
-  res.json(await createPortalSession(req.user));
+router.post('/portal', validate({ body: z.object({ platform }) }), async (req, res) => {
+  res.json(await createPortalSession(req.user, req.valid.body.platform));
 });
 
 export default router;

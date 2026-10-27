@@ -8,17 +8,22 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import env from '../config/env.js';
 import { HttpError } from '../utils/httpError.js';
 
-let client;
-function s3() {
+const clients = {};
+/**
+ * `server` talks to storage from this process; `browser` only signs URLs,
+ * using the host name browsers can reach (S3_PUBLIC_ENDPOINT when set).
+ */
+function s3(kind = 'server') {
   if (!env.S3_BUCKET) throw new HttpError(503, 'Object storage is not configured', 'storage_unconfigured');
-  client ??= new S3Client({
+  const endpoint = kind === 'browser' ? env.S3_PUBLIC_ENDPOINT || env.S3_ENDPOINT : env.S3_ENDPOINT;
+  clients[kind] ??= new S3Client({
     region: env.S3_REGION,
-    ...(env.S3_ENDPOINT && { endpoint: env.S3_ENDPOINT, forcePathStyle: true }),
+    ...(endpoint && { endpoint, forcePathStyle: true }),
     ...(env.S3_ACCESS_KEY_ID && {
       credentials: { accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY },
     }),
   });
-  return client;
+  return clients[kind];
 }
 
 export const AUDIO_TYPES = { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/aac': 'aac', 'audio/flac': 'flac' };
@@ -30,7 +35,7 @@ export async function createUploadUrl(kind, contentType) {
   const ext = types[contentType];
   if (!ext) throw new HttpError(400, `Unsupported content type ${contentType}`);
   const key = `${kind === 'audio' ? 'audio' : 'artwork'}/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${ext}`;
-  const url = await getSignedUrl(s3(), new PutObjectCommand({ Bucket: env.S3_BUCKET, Key: key, ContentType: contentType }), {
+  const url = await getSignedUrl(s3('browser'), new PutObjectCommand({ Bucket: env.S3_BUCKET, Key: key, ContentType: contentType }), {
     expiresIn: 900,
   });
   const publicUrl = kind === 'image' && env.ASSET_PUBLIC_BASE_URL ? `${env.ASSET_PUBLIC_BASE_URL.replace(/\/$/, '')}/${key}` : null;
@@ -44,7 +49,7 @@ export async function signedAudioUrl(key, { download = false, ttl = env.STREAM_U
     Key: key,
     ...(download && { ResponseContentDisposition: 'attachment' }),
   });
-  return getSignedUrl(s3(), cmd, { expiresIn: ttl });
+  return getSignedUrl(s3('browser'), cmd, { expiresIn: ttl });
 }
 
 export async function objectSize(key) {
@@ -54,4 +59,18 @@ export async function objectSize(key) {
 
 export async function deleteObject(key) {
   await s3().send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
+}
+
+/** Origins browsers load storage objects from, for the Content-Security-Policy. */
+export function storageOrigins() {
+  return [env.S3_PUBLIC_ENDPOINT || env.S3_ENDPOINT, env.ASSET_PUBLIC_BASE_URL]
+    .filter(Boolean)
+    .map((u) => {
+      try {
+        return new URL(u).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
 }
