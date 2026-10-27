@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:demo": "VITE_DEMO=1 vite build --outDir demo-dist --base ./"
+    "build:demo": "VITE_DEMO=1 vite build --outDir demo-dist --base ./",
+    "build:pages": "node scripts/build-pages.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.105.0",
