@@ -5,7 +5,7 @@ process.env.JWT_ACCESS_SECRET = 'test-access-secret-0123456789abcdef0123456789';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-0123456789abcdef012345678';
 process.env.OFFLINE_KEY_SECRET = 'a'.repeat(64);
 
-const { parseIsoDuration } = await import('../src/services/youtube.js');
+const { parseIsoDuration, parsePlaylistId } = await import('../src/services/youtube.js');
 const { Track, Playlist, User } = await import('../src/models/index.js');
 const { contentKeyFor } = await import('../src/services/offlineKeys.js');
 const { signPurposeToken, verifyPurposeToken } = await import('../src/services/tokens.js');
@@ -147,4 +147,22 @@ test('production boots with only the database, secrets and admin login', async (
   expect(r.status).toBe(0);
   const out = JSON.parse(r.stdout.trim().split('\n').pop());
   expect(out).toEqual({ url: 'https://mymusic.onrender.com', autoIndex: true, admin: 'admin@example.com', disabled: 5 });
+});
+
+test('parses YouTube playlist links', () => {
+  const id = 'PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG';
+  expect(parsePlaylistId(`https://www.youtube.com/playlist?list=${id}`)).toBe(id);
+  expect(parsePlaylistId(`https://music.youtube.com/playlist?list=${id}&si=abc`)).toBe(id);
+  expect(parsePlaylistId(`https://youtu.be/dQw4w9WgXcQ?list=${id}`)).toBe(id);
+  expect(parsePlaylistId(`https://m.youtube.com/watch?v=dQw4w9WgXcQ&list=${id}`)).toBe(id);
+  expect(parsePlaylistId(id)).toBe(id);
+  expect(parsePlaylistId('https://evil.example.com/playlist?list=' + id)).toBeNull();
+  expect(parsePlaylistId('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+  expect(parsePlaylistId('not a link')).toBeNull();
+});
+
+test('import rejects links without a playlist before touching YouTube', async () => {
+  const api = request(createApp());
+  // Unauthenticated requests are refused first.
+  expect((await api.post('/api/v1/playlists/import/youtube').send({ url: 'x', name: 'y' })).status).toBe(401);
 });

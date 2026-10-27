@@ -63,7 +63,21 @@ export const Catalog = {
   album: (id: string) => api<{ album: Album & { artist: Artist }; tracks: CatalogTrack[]; totalDurationSec: number }>(`/catalog/albums/${id}`),
 };
 
+export type YouTubePlaylistPreview = {
+  playlistId: string;
+  title: string;
+  channelTitle: string;
+  thumbnailUrl: string | null;
+  totalCount: number;
+  playableCount: number;
+  skipped: number;
+  truncated: boolean;
+};
+
+export type YouTubeImportResult = { playlist: Playlist; added: number; alreadyInPlaylist: number; unavailable: number; overLimit: number; truncated: boolean };
+
 export const YouTube = {
+  playlist: (url: string) => api<YouTubePlaylistPreview>(`/youtube/playlist${q({ url })}`),
   search: (text: string, pageToken?: string) =>
     api<{ items: YouTubeVideo[]; nextPageToken: string | null }>(`/youtube/search${q({ q: text, pageToken })}`),
 };
@@ -84,6 +98,8 @@ export const Playlists = {
   share: (id: string, visibility: 'unlisted' | 'public' = 'unlisted') =>
     api<{ shareUrl: string; visibility: string }>(`/playlists/${id}/share`, { method: 'POST', body: { visibility } }),
   invite: (id: string) => api<{ inviteUrl: string }>(`/playlists/${id}/invite`, { method: 'POST' }),
+  importYouTube: (body: { url: string; playlistId?: string; name?: string }) =>
+    api<YouTubeImportResult>('/playlists/import/youtube', { method: 'POST', body }),
   join: (token: string) => api<{ playlist: Playlist }>('/playlists/join', { method: 'POST', body: { token } }),
   follow: (id: string) => api(`/playlists/${id}/follow`, { method: 'POST' }),
   unfollow: (id: string) => api(`/playlists/${id}/follow`, { method: 'DELETE' }),

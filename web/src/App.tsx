@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthProvider';
 import { AddToPlaylistHost } from './components/AddToPlaylist';
+import { ImportYouTubeHost } from './components/ImportYouTube';
 import { Layout } from './components/Layout';
 import { OverlayHost } from './components/overlays';
 import { Spinner } from './components/ui';
@@ -83,6 +84,7 @@ export default function App() {
       </Routes>
       <OverlayHost />
       {status === 'signedIn' && <AddToPlaylistHost />}
+      {status === 'signedIn' && <ImportYouTubeHost />}
     </>
   );
 }

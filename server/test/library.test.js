@@ -140,3 +140,79 @@ describe('catalog rights', () => {
     expect((await api.post('/api/v1/downloads/devices').set(s.auth).send({ deviceId: 'device-00000001' })).status).toBe(200);
   });
 });
+
+describe('YouTube playlist import', () => {
+  const PL = 'PLtestplaylist0001';
+  const ids = ['aaaaaaaaaa1', 'bbbbbbbbbb2', 'cccccccccc3', 'dddddddddd4'];
+  let realFetch;
+
+  beforeAll(() => {
+    realFetch = global.fetch;
+    // Fake YouTube Data API: 4 videos over two pages, one of them private.
+    global.fetch = async (input) => {
+      const url = new URL(String(input));
+      const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (url.pathname.endsWith('/playlists')) {
+        return json({ items: url.searchParams.get('id') === PL ? [{ id: PL, snippet: { title: 'Road songs', channelTitle: 'Some DJ', thumbnails: {} }, contentDetails: { itemCount: 4 } }] : [] });
+      }
+      if (url.pathname.endsWith('/playlistItems')) {
+        const second = url.searchParams.get('pageToken') === 'p2';
+        const page = second ? ids.slice(2) : ids.slice(0, 2);
+        return json({ items: page.map((videoId) => ({ contentDetails: { videoId } })), nextPageToken: second ? undefined : 'p2' });
+      }
+      if (url.pathname.endsWith('/videos')) {
+        const asked = url.searchParams.get('id').split(',');
+        return json({
+          items: asked.map((id) => ({
+            id,
+            snippet: { title: `Song ${id}`, channelTitle: 'Artist', thumbnails: {} },
+            contentDetails: { duration: 'PT3M' },
+            status: { embeddable: true, privacyStatus: id === 'cccccccccc3' ? 'private' : 'public', uploadStatus: 'processed' },
+          })),
+        });
+      }
+      return realFetch(input);
+    };
+  });
+  afterAll(() => {
+    global.fetch = realFetch;
+  });
+
+  test('preview, import into a new playlist, then re-import without duplicates', async () => {
+    const s = await signUp(api);
+    const link = `https://www.youtube.com/playlist?list=${PL}`;
+
+    const preview = await api.get('/api/v1/youtube/playlist').query({ url: link }).set(s.auth);
+    expect(preview.status).toBe(200);
+    expect(preview.body).toMatchObject({ title: 'Road songs', channelTitle: 'Some DJ', playableCount: 3, skipped: 1 });
+
+    const created = await api.post('/api/v1/playlists/import/youtube').set(s.auth).send({ url: link, name: 'My road songs' });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ added: 3, unavailable: 1, alreadyInPlaylist: 0 });
+    expect(created.body.playlist.name).toBe('My road songs');
+    expect(created.body.playlist.visibility).toBe('private');
+    expect(created.body.playlist.items.map((i) => i.videoId)).toEqual(['aaaaaaaaaa1', 'bbbbbbbbbb2', 'dddddddddd4']);
+
+    const again = await api.post('/api/v1/playlists/import/youtube').set(s.auth).send({ url: link, playlistId: created.body.playlist.id });
+    expect(again.status).toBe(200);
+    expect(again.body).toMatchObject({ added: 0, alreadyInPlaylist: 3 });
+
+    // Only ids are stored, never YouTube titles.
+    const doc = await models.Playlist.findById(created.body.playlist.id).lean();
+    expect(doc.items.every((i) => i.kind === 'youtube' && i.videoId && !i.title)).toBe(true);
+  });
+
+  test('rejects bad links, missing playlists and other people’s playlists', async () => {
+    const s = await signUp(api);
+    const other = await signUp(api);
+    const bad = await api.post('/api/v1/playlists/import/youtube').set(s.auth).send({ url: 'https://example.com', name: 'x' });
+    expect(bad.status).toBe(400);
+    const missing = await api.post('/api/v1/playlists/import/youtube').set(s.auth).send({ url: 'https://www.youtube.com/playlist?list=PLdoesnotexist01', name: 'x' });
+    expect(missing.status).toBe(404);
+    const mix = await api.get('/api/v1/youtube/playlist').query({ url: 'https://www.youtube.com/watch?v=aaaaaaaaaa1&list=RDaaaaaaaaaa1' }).set(s.auth);
+    expect(mix.status).toBe(422);
+    const { body } = await api.post('/api/v1/playlists').set(other.auth).send({ name: 'Not yours' });
+    const foreign = await api.post('/api/v1/playlists/import/youtube').set(s.auth).send({ url: `https://www.youtube.com/playlist?list=${PL}`, playlistId: body.playlist.id });
+    expect(foreign.status).toBe(404);
+  });
+});

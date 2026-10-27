@@ -32,7 +32,7 @@ and plays them only through the **official embedded player**.
 | No background or audio-only playback | Mobile: YouTube plays only while the Now Playing screen is visible and pauses when the app is backgrounded. Web: the player is docked on screen whenever a video is current, never hidden or reduced to audio. On both, the queue never auto-starts a YouTube video while the app / tab is in the background. |
 | Player size | The embed is 16:9, at least 200 px high (mobile: full content width; web: 400 px wide dock, full width on phones). |
 | Only playable content | Search requests `videoEmbeddable=true`, `videoSyndicated=true`; results are re-checked for `status.embeddable` and public privacy status. |
-| Stored API data limits | Only video ids are stored in playlists, favorites and history. Metadata is cached for one hour by default (TTL index) and re-fetched on read. Deleting an account deletes the ids. |
+| Stored API data limits | Only video ids are stored in playlists, favorites and history (also when importing a YouTube playlist: the new playlist's name is what the user types, YouTube's title is only a suggestion). Metadata is cached for one hour by default (TTL index) and re-fetched on read. Deleting an account deletes the ids. |
 | API key security | The key lives only on the server; clients call the MyMusic API. |
 | Quota | Results cached; searches rate limited per user and run only on submit. |
 | Terms and privacy links | Sign-up screen and Settings link to the YouTube Terms of Service and the Google Privacy Policy, as the YouTube API Services Terms require. |

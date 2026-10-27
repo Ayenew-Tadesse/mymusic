@@ -8,7 +8,8 @@ import { validate } from '../middleware/validate.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { hydrateItems, playlistSummary } from '../services/serializers.js';
 import { signPurposeToken, verifyPurposeToken } from '../services/tokens.js';
-import { VIDEO_ID_RE } from '../services/youtube.js';
+import { VIDEO_ID_RE, getPlaylist, parsePlaylistId } from '../services/youtube.js';
+import { importLimiter } from '../middleware/rateLimit.js';
 import { objectId } from './catalog.js';
 import { notFound, forbidden, badRequest, conflict } from '../utils/httpError.js';
 import env from '../config/env.js';
@@ -183,6 +184,56 @@ router.post('/:id/invite', validate({ params: idParams }), async (req, res) => {
   const token = await signPurposeToken('playlist-invite', { pid: p.id, sid: p.shareId }, '7d');
   res.json({ inviteUrl: `${env.PUBLIC_API_URL}/invite/${token}`, token, expiresInDays: 7 });
 });
+
+/**
+ * Import a YouTube playlist: adds its playable videos (ids only) to an
+ * existing playlist the user can edit, or to a new private playlist named by
+ * the user. Videos already in the target playlist are skipped.
+ */
+router.post(
+  '/import/youtube',
+  importLimiter,
+  validate({
+    body: z
+      .object({
+        url: z.string().trim().min(1).max(500),
+        playlistId: objectId.optional(),
+        name: z.string().trim().min(1).max(100).optional(),
+      })
+      .refine((b) => b.playlistId || b.name, 'Choose a playlist or give the new one a name'),
+  }),
+  async (req, res) => {
+    const ytId = parsePlaylistId(req.valid.body.url);
+    if (!ytId) throw badRequest('Paste a YouTube playlist link (it contains “list=”)');
+    const source = await getPlaylist(ytId);
+    if (!source.videoIds.length) throw badRequest('None of the videos in that playlist can be played here');
+
+    let p;
+    if (req.valid.body.playlistId) {
+      p = await load(req.valid.body.playlistId, req.user._id, { edit: true });
+    } else {
+      if ((await Playlist.countDocuments({ owner: req.user._id })) >= 500) throw badRequest('You have reached the playlist limit');
+      p = new Playlist({ owner: req.user._id, name: req.valid.body.name });
+    }
+
+    const existing = new Set(p.items.filter((i) => i.kind === 'youtube').map((i) => i.videoId));
+    const fresh = source.videoIds.filter((id) => !existing.has(id));
+    const room = MAX_PLAYLIST_ITEMS - p.items.length;
+    const toAdd = fresh.slice(0, Math.max(0, room));
+    p.items.push(...toAdd.map((videoId) => ({ kind: 'youtube', videoId, addedBy: req.user._id })));
+    await p.save();
+    await p.populate('owner', 'displayName');
+
+    res.status(req.valid.body.playlistId ? 200 : 201).json({
+      playlist: await detail(p, req),
+      added: toAdd.length,
+      alreadyInPlaylist: source.videoIds.length - fresh.length,
+      unavailable: source.skipped,
+      overLimit: fresh.length - toAdd.length,
+      truncated: source.truncated,
+    });
+  },
+);
 
 router.post('/join', validate({ body: z.object({ token: z.string().min(20).max(2048) }) }), async (req, res) => {
   const claims = await verifyPurposeToken('playlist-invite', req.valid.body.token);

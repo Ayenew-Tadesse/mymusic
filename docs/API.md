@@ -71,6 +71,7 @@ Track object:
 |---|---|---|
 | GET | `/search?q=&pageToken=` | Embeddable, public music videos. 30 / min / user |
 | GET | `/videos?ids=a,b,c` | Up to 50 ids |
+| GET | `/playlist?url=` | Preview a YouTube playlist by link: `{title, channelTitle, thumbnailUrl, totalCount, playableCount, skipped, truncated}`. Nothing is stored. 30 / hour / user |
 
 Video object: `{kind: "youtube", videoId, title, channelTitle, channelId, thumbnailUrl, durationSec, watchUrl}`.
 
@@ -90,6 +91,7 @@ Video object: `{kind: "youtube", videoId, title, channelTitle, channelId, thumbn
 | PUT | `/:id/items/order` | `itemId, toIndex` |
 | POST | `/:id/share` | `visibility ("unlisted" \| "public"), rotate?` returns `shareUrl` |
 | POST | `/:id/invite` | Owner; returns a 7-day collaborator invite link |
+| POST | `/import/youtube` | `url` (YouTube playlist link) and either `playlistId` (existing, editable) or `name` (new private playlist). Adds the playable videos (ids only, up to 500), skipping ones already there → `{playlist, added, alreadyInPlaylist, unavailable, overLimit, truncated}` |
 | POST | `/join` | `token` |
 | DELETE | `/:id/collaborators/:userId` | Owner, or the collaborator leaving |
 | POST / DELETE | `/:id/follow` | Public or editorial playlists |

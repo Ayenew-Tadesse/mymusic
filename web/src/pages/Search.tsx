@@ -10,6 +10,7 @@ import { keys } from '../api/queryClient';
 import { errorMessage } from '../api/client';
 import type { YouTubeVideo } from '../api/types';
 import { PlaylistCard } from '../components/Cards';
+import { looksLikeYouTubePlaylist, openImportYouTube } from '../components/ImportYouTube';
 import { Icon } from '../components/Icon';
 import { TrackList } from '../components/TrackList';
 import { Artwork, Empty, ErrorState, Section, Spinner } from '../components/ui';
@@ -89,6 +90,14 @@ export default function Search() {
           </button>
         )}
       </form>
+      {config?.youtubeEnabled && looksLikeYouTubePlaylist(text) && (
+        <div className="banner">
+          <span>That’s a YouTube playlist link.</span>
+          <button className="btn btn-primary btn-sm" onClick={() => openImportYouTube({ url: text.trim() })}>
+            Import playlist
+          </button>
+        </div>
+      )}
       <div className="chips" role="tablist">
         <button role="tab" aria-selected={tab === 'catalog'} className={`chip ${tab === 'catalog' ? 'active' : ''}`} onClick={() => setTab('catalog')}>
           MyMusic

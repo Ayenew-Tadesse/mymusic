@@ -34,7 +34,7 @@ put it online for free with MongoDB Atlas and Render in about 10 minutes
 ## Features
 
 - **Accounts**: email + password, Sign in with Apple, Google sign-in; email verification, password reset, sign out everywhere, in-app account deletion, data export.
-- **Playlists**: create, rename, reorder, remove, make public / unlisted / private, share links with previews, collaboration invite links, follow, copy.
+- **Playlists**: import a YouTube / YouTube Music playlist by link, create, rename, reorder, remove, make public / unlisted / private, share links with previews, collaboration invite links, follow, copy.
 - **Library**: Liked Songs (favorites), listening history, downloads.
 - **Player**: queue (play next, add, reorder, remove), shuffle, repeat off / all / one, sleep timer (minutes or end of track), background playback, lock-screen controls.
 - **Catalog**: album artwork, artist pages, album pages, track durations, explicit tags, licence attribution.

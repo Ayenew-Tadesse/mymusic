@@ -21,3 +21,5 @@ export const globalLimiter = make(60_000, 300);
 export const authLimiter = make(15 * 60_000, 20); // login / register / reset attempts per IP
 // Mount after requireAuth so the limit is per user.
 export const searchLimiter = make(60_000, 30, true); // YouTube search costs 100 quota units
+// Playlist previews / imports page through YouTube and can add hundreds of items.
+export const importLimiter = make(60 * 60_000, 30, true);

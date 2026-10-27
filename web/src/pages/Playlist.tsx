@@ -7,6 +7,8 @@ import { keys, queryClient } from '../api/queryClient';
 import { errorMessage } from '../api/client';
 import type { Playlist } from '../api/types';
 import { Hero } from '../components/Hero';
+import { openImportYouTube } from '../components/ImportYouTube';
+import { useConfig } from '../hooks/useConfig';
 import { confirmDialog, openMenu, prompt, toast } from '../components/overlays';
 import { TrackList } from '../components/TrackList';
 import { Empty, ErrorState, IconButton, Spinner } from '../components/ui';
@@ -26,6 +28,7 @@ export default function PlaylistPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  const config = useConfig();
   const { data: p, error, isLoading, refetch } = useQuery({ queryKey: keys.playlist(id), queryFn: () => Playlists.get(id).then((r) => r.playlist) });
 
   if (isLoading) return <Spinner />;
@@ -65,6 +68,7 @@ export default function PlaylistPage() {
       { label: 'Rename', hidden: !p.canEdit, onSelect: async () => { const name = await prompt('Rename playlist', p.name); if (name) run(() => Playlists.update(id, { name })); } },
       { label: 'Edit description', hidden: !p.canEdit, onSelect: async () => { const description = await prompt('Description', p.description || ' ', 'Save'); if (description !== null) run(() => Playlists.update(id, { description: description.trim() })); } },
       { label: p.visibility === 'public' ? 'Make private' : 'Make public', hidden: !p.isOwner, onSelect: () => run(() => Playlists.update(id, { visibility: p.visibility === 'public' ? 'private' : 'public' })) },
+      { label: 'Import songs from YouTube…', hidden: !p.canEdit || !config?.youtubeEnabled, onSelect: () => openImportYouTube({ targetId: id }) },
       { label: 'Copy link to playlist', hidden: !p.isOwner && !p.shareUrl, onSelect: share },
       { label: 'Invite collaborators', hidden: !p.isOwner, onSelect: async () => { try { const { inviteUrl } = await Playlists.invite(id); await copyText(inviteUrl, 'Invite link copied'); } catch (err) { toast(errorMessage(err)); } } },
       { label: 'Save a copy', hidden: p.isOwner, onSelect: async () => { try { const { playlist } = await Playlists.copy(id); queryClient.invalidateQueries({ queryKey: keys.playlists }); navigate(`/playlist/${playlist.id}`); } catch (err) { toast(errorMessage(err)); } } },

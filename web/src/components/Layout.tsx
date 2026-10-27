@@ -11,11 +11,14 @@ import { QueuePanel } from '../player/QueuePanel';
 import { YouTubeDock } from '../player/YouTubeDock';
 import { Icon } from './Icon';
 import { openMenu, prompt, toast } from './overlays';
+import { openImportYouTube } from './ImportYouTube';
+import { useConfig } from '../hooks/useConfig';
 import { Artwork, IconButton } from './ui';
 
 function LibraryPanel() {
   const navigate = useNavigate();
   const { data } = useQuery({ queryKey: keys.playlists, queryFn: Playlists.mine });
+  const config = useConfig();
   const create = useMutation({
     mutationFn: (name: string) => Playlists.create(name),
     onSuccess: ({ playlist }) => {
@@ -31,10 +34,22 @@ function LibraryPanel() {
         <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Icon name="library" /> Your Library
         </span>
-        <IconButton icon="add" label="Create playlist" onClick={async () => {
-          const name = await prompt('Give your playlist a name', 'My playlist', 'Create');
-          if (name) create.mutate(name);
-        }} />
+        <IconButton
+          icon="add"
+          label="Create playlist or import"
+          onClick={(e) =>
+            openMenu(e, [
+              {
+                label: 'Create playlist',
+                onSelect: async () => {
+                  const name = await prompt('Give your playlist a name', 'My playlist', 'Create');
+                  if (name) create.mutate(name);
+                },
+              },
+              { label: 'Import from YouTube…', hidden: !config?.youtubeEnabled, onSelect: () => openImportYouTube() },
+            ])
+          }
+        />
       </div>
       <nav className="library-list" aria-label="Your library">
         <NavLink to="/collection/tracks" className={({ isActive }) => `lib-item ${isActive ? 'active' : ''}`}>

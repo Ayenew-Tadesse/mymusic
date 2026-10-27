@@ -5,8 +5,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
-import { searchLimiter } from '../middleware/rateLimit.js';
-import { searchMusic, getVideos, VIDEO_ID_RE } from '../services/youtube.js';
+import { importLimiter, searchLimiter } from '../middleware/rateLimit.js';
+import { searchMusic, getVideos, getPlaylist, parsePlaylistId, VIDEO_ID_RE } from '../services/youtube.js';
+import { badRequest } from '../utils/httpError.js';
 
 const router = Router();
 
@@ -28,5 +29,16 @@ router.get(
     res.json({ items: req.valid.query.ids.map((id) => map.get(id)).filter(Boolean) });
   },
 );
+
+/**
+ * Preview a YouTube playlist before importing it: title, channel and how many
+ * songs can be played here. Nothing is stored.
+ */
+router.get('/playlist', importLimiter, validate({ query: z.object({ url: z.string().trim().min(1).max(500) }) }), async (req, res) => {
+  const id = parsePlaylistId(req.valid.query.url);
+  if (!id) throw badRequest('Paste a YouTube playlist link (it contains “list=”)');
+  const { videoIds, ...preview } = await getPlaylist(id);
+  res.json({ ...preview, playableCount: videoIds.length });
+});
 
 export default router;

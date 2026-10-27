@@ -124,3 +124,68 @@ export async function searchMusic(query, { pageToken, regionCode = env.YOUTUBE_R
     };
   });
 }
+
+// ---- Playlists -----------------------------------------------------------------
+
+export const PLAYLIST_ID_RE = /^[A-Za-z0-9_-]{10,64}$/;
+export const MAX_IMPORT_ITEMS = 500;
+
+/**
+ * Accepts a YouTube / YouTube Music playlist URL (anything with `list=`) or a
+ * bare playlist id. Returns null when no playlist id can be found.
+ */
+export function parsePlaylistId(input) {
+  const text = String(input ?? '').trim();
+  if (PLAYLIST_ID_RE.test(text)) return text;
+  try {
+    const url = new URL(text);
+    const host = url.hostname.replace(/^www\.|^m\.|^music\./, '');
+    if (!['youtube.com', 'youtu.be'].includes(host)) return null;
+    const id = url.searchParams.get('list');
+    return id && PLAYLIST_ID_RE.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Auto-generated mixes (RD…) and personal lists (LL, WL) aren't readable through the API. */
+const isUnreadable = (id) => /^(RD|LL$|WL$|LM$)/.test(id);
+
+/**
+ * Title and channel for a preview, plus the playable video ids in order
+ * (up to MAX_IMPORT_ITEMS). Private, deleted and non-embeddable videos are
+ * left out and counted in `skipped`.
+ */
+export async function getPlaylist(playlistId) {
+  if (isUnreadable(playlistId)) {
+    throw new HttpError(422, 'YouTube mixes and personal lists can’t be imported. Use a regular public or unlisted playlist.', 'youtube_playlist_unsupported');
+  }
+  return cached(`playlist:${playlistId}`, env.YOUTUBE_CACHE_TTL_SECONDS, async () => {
+    const meta = await call('playlists', { part: 'snippet,contentDetails', id: playlistId, maxResults: 1 });
+    const pl = meta.items?.[0];
+    if (!pl) throw new HttpError(404, 'That YouTube playlist doesn’t exist or is private', 'youtube_playlist_not_found');
+
+    const ids = [];
+    let pageToken;
+    // playlistItems.list costs 1 quota unit per page of 50.
+    do {
+      const page = await call('playlistItems', { part: 'contentDetails', playlistId, maxResults: 50, pageToken });
+      for (const it of page.items ?? []) if (it.contentDetails?.videoId) ids.push(it.contentDetails.videoId);
+      pageToken = page.nextPageToken;
+    } while (pageToken && ids.length < MAX_IMPORT_ITEMS);
+
+    const listed = ids.slice(0, MAX_IMPORT_ITEMS);
+    const playable = await getVideos(listed);
+    const videoIds = listed.filter((id) => playable.has(id));
+    return {
+      playlistId,
+      title: pl.snippet?.title ?? 'YouTube playlist',
+      channelTitle: pl.snippet?.channelTitle ?? '',
+      thumbnailUrl: bestThumb(pl.snippet?.thumbnails),
+      totalCount: pl.contentDetails?.itemCount ?? ids.length,
+      videoIds,
+      skipped: listed.length - videoIds.length,
+      truncated: (pl.contentDetails?.itemCount ?? ids.length) > MAX_IMPORT_ITEMS,
+    };
+  });
+}

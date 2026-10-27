@@ -5,12 +5,15 @@ import { Playlists } from '../api/endpoints';
 import { keys, queryClient } from '../api/queryClient';
 import { errorMessage } from '../api/client';
 import { Icon } from '../components/Icon';
-import { prompt, toast } from '../components/overlays';
+import { openMenu, prompt, toast } from '../components/overlays';
+import { openImportYouTube } from '../components/ImportYouTube';
+import { useConfig } from '../hooks/useConfig';
 import { Artwork, IconButton } from '../components/ui';
 
 export default function LibraryPage() {
   const navigate = useNavigate();
   const { data } = useQuery({ queryKey: keys.playlists, queryFn: Playlists.mine });
+  const config = useConfig();
 
   async function create() {
     const name = await prompt('Give your playlist a name', 'My playlist', 'Create');
@@ -28,7 +31,17 @@ export default function LibraryPage() {
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 className="page-title">Your Library</h1>
-        <IconButton icon="add" label="Create playlist" size={28} onClick={create} />
+        <IconButton
+          icon="add"
+          label="Create playlist or import"
+          size={28}
+          onClick={(e) =>
+            openMenu(e, [
+              { label: 'Create playlist', onSelect: create },
+              { label: 'Import from YouTube…', hidden: !config?.youtubeEnabled, onSelect: () => openImportYouTube() },
+            ])
+          }
+        />
       </div>
       <Link to="/collection/tracks" className="lib-item">
         <div className="art" style={{ width: 56, height: 56, borderRadius: 4, background: 'linear-gradient(135deg,#450af5,#c4efd9)', color: '#fff' }}>
