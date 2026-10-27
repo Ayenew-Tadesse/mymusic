@@ -10,6 +10,10 @@ jobs:
       mongo:
         image: mongo:8
         ports: ["27017:27017"]
+        env:
+          # mongod 8 refuses to start on Linux kernels 6.19 through 7.0.13 (SERVER-121912);
+          # keeping glibc's rseq registration lets it run.
+          GLIBC_TUNABLES: glibc.pthread.rseq=1
     defaults: { run: { working-directory: server } }
     steps:
       - uses: actions/checkout@v4
