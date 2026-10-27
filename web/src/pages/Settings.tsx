@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Auth, Me } from '../api/endpoints';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
@@ -80,9 +81,9 @@ export default function Settings() {
         <span>
           Plan <div className="muted">{planName}</div>
         </span>
-        <a className="btn btn-secondary btn-sm" href="/premium">
+        <Link className="btn btn-secondary btn-sm" to="/premium">
           {user.subscription.plan === 'free' ? 'Upgrade' : 'Manage'}
-        </a>
+        </Link>
       </div>
 
       <h2 style={{ marginTop: 32 }}>Display</h2>
