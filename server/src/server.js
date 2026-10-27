@@ -1,9 +1,12 @@
-import env from './config/env.js';
+import env, { disabledServices } from './config/env.js';
 import logger from './config/logger.js';
 import { connectDb, disconnectDb } from './config/db.js';
 import { createApp } from './app.js';
+import { ensureAdmin } from './services/bootstrap.js';
 
 await connectDb();
+await ensureAdmin().catch((err) => logger.error({ err: err.message }, 'Could not create the admin account'));
+if (disabledServices.length) logger.warn({ disabled: disabledServices }, 'Some features are off until their keys are configured');
 const server = createApp().listen(env.PORT, () => logger.info({ port: env.PORT }, 'MyMusic API listening'));
 // Slightly above typical load balancer idle timeouts to avoid 502s on reused connections.
 server.keepAliveTimeout = 65_000;

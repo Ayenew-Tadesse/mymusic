@@ -7,7 +7,11 @@ const transport = env.SMTP_URL ? nodemailer.createTransport(env.SMTP_URL) : null
 
 async function send({ to, subject, text, html }) {
   if (!transport) {
-    if (isProd) throw new Error('SMTP_URL is not configured');
+    if (isProd) {
+      // Never log message bodies in production: they contain sign-in links.
+      logger.warn({ subject }, 'Email not sent: SMTP_URL is not configured');
+      return;
+    }
     // Development fallback: print the email so links can be followed locally.
     logger.info({ to, subject, text }, 'Email (not sent, SMTP_URL unset)');
     return;

@@ -2,7 +2,9 @@
 import crypto from 'node:crypto';
 import env from '../config/env.js';
 
-const key = env.DATA_ENCRYPTION_KEY ? Buffer.from(env.DATA_ENCRYPTION_KEY, 'hex') : null;
+const raw = env.DATA_ENCRYPTION_KEY;
+// 64 hex characters are the key itself; any other secret is hashed to 32 bytes.
+const key = !raw ? null : /^[0-9a-f]{64}$/i.test(raw) ? Buffer.from(raw, 'hex') : crypto.createHash('sha256').update(raw).digest();
 
 export const canEncrypt = () => Boolean(key);
 

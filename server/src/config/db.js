@@ -8,7 +8,8 @@ mongoose.set('strictQuery', true);
 
 export async function connectDb(uri = env.MONGODB_URI) {
   await mongoose.connect(uri, {
-    autoIndex: !isProd, // in production run `npm run db:indexes` during deploy
+    // In production run `npm run db:indexes` during deploy, or set DB_AUTO_INDEX=true.
+    autoIndex: env.DB_AUTO_INDEX ?? !isProd,
     maxPoolSize: 20,
     serverSelectionTimeoutMS: 10_000,
   });

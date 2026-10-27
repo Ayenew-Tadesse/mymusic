@@ -5,9 +5,31 @@ Production setup: **MongoDB Atlas**, **S3-compatible storage** (AWS S3 or Cloudf
 (`/admin`) (Render, Fly.io, Railway, AWS ECS / App Runner and Google Cloud Run all work), and
 the **mobile apps built and submitted with EAS**.
 
-**Fastest path: Render.** Push the repo to GitHub, then in Render choose *New → Blueprint* and
-pick the repo. `render.yaml` creates the web service from the root `Dockerfile`; fill in the
-variables it asks for (MongoDB URI, storage, keys), deploy, and open the service URL.
+## Quick launch (free): MongoDB Atlas + Render
+
+This gets the real app online with accounts, playlists, likes, history and the admin
+dashboard. YouTube search, uploads, subscriptions and emails switch on later when you
+add their keys (sections 3–7).
+
+**1. Database (MongoDB Atlas, free)**
+1. Sign up at https://www.mongodb.com/cloud/atlas/register and create a free **M0** cluster.
+2. *Database Access*: add a user with a password (letters and numbers only keeps the link simple).
+3. *Network Access*: add `0.0.0.0/0` (Render's free plan has no fixed IP address).
+4. *Connect → Drivers*: copy the connection string, put your password in it and add the
+   database name before the `?`, e.g.
+   `mongodb+srv://mymusic:PASSWORD@cluster0.abcde.mongodb.net/mymusic?retryWrites=true&w=majority`
+
+**2. Server (Render, free)**
+1. Sign up at https://render.com with your GitHub account.
+2. *New → Blueprint*, pick the `mymusic` repository, branch `main`.
+3. Fill in the three values Render asks for: `MONGODB_URI` (from step 1), `ADMIN_EMAIL` and
+   `ADMIN_PASSWORD` (12+ characters). Everything else is generated.
+4. Click *Apply*. The first build takes about 5 minutes.
+5. Open the URL Render shows (like `https://mymusic-xxxx.onrender.com`): sign up to listen,
+   and sign in at `/admin` with the admin email and password.
+
+The free plan sleeps after 15 minutes without visitors; the next visit takes about a minute
+to wake it. A paid instance stays awake.
 
 ## 1. Generate secrets
 

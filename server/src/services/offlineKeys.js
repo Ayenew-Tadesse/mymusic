@@ -10,7 +10,10 @@
 import crypto from 'node:crypto';
 import env from '../config/env.js';
 
-const master = Buffer.from(env.OFFLINE_KEY_SECRET, 'hex');
+// 64 hex characters are the key itself; any other secret is hashed to 32 bytes.
+const master = /^[0-9a-f]{64}$/i.test(env.OFFLINE_KEY_SECRET)
+  ? Buffer.from(env.OFFLINE_KEY_SECRET, 'hex')
+  : crypto.createHash('sha256').update(env.OFFLINE_KEY_SECRET).digest();
 
 export function contentKeyFor(licenseId) {
   return crypto.createHmac('sha256', master).update(`offline-license:${licenseId}`).digest('base64');

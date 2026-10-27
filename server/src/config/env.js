@@ -22,7 +22,8 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   // Public base URL of this API. Share links, email links and Stripe return pages are served from it.
-  PUBLIC_API_URL: z.string().url().default('http://localhost:4000'),
+  // Render sets RENDER_EXTERNAL_URL automatically, so it is the fallback there.
+  PUBLIC_API_URL: z.string().url().default(process.env.RENDER_EXTERNAL_URL || 'http://localhost:4000'),
   // Comma separated list of browser origins allowed by CORS (admin dashboard, web).
   CORS_ORIGINS: csv,
   TRUST_PROXY: z.coerce.number().int().min(0).default(1),
@@ -71,10 +72,18 @@ const schema = z.object({
   OFFLINE_LICENSE_DAYS: z.coerce.number().int().positive().max(30).default(30),
   MAX_OFFLINE_DEVICES: z.coerce.number().int().positive().default(3),
   // 32 byte hex master key used to derive per-licence content keys.
-  OFFLINE_KEY_SECRET: z.string().regex(/^[0-9a-f]{64}$/i, 'must be 64 hex characters'),
+  // Any random string of 32+ characters (64 hex characters are used as-is).
+  OFFLINE_KEY_SECRET: z.string().min(32),
 
   // 32 byte hex key for encrypting secrets at rest (e.g. Apple refresh tokens).
-  DATA_ENCRYPTION_KEY: z.string().regex(/^[0-9a-f]{64}$/i, 'must be 64 hex characters').optional(),
+  DATA_ENCRYPTION_KEY: z.string().min(32).optional(),
+
+  // Build MongoDB indexes when the server starts (simplest on hosts without a release step).
+  DB_AUTO_INDEX: z.enum(['true', 'false', '1', '0', '']).optional().transform((v) => (v === undefined || v === '' ? undefined : v === 'true' || v === '1')),
+
+  // Creates (or promotes) this admin account at startup, for hosts without a shell.
+  ADMIN_EMAIL: z.string().email().optional().or(z.literal('').transform(() => undefined)),
+  ADMIN_PASSWORD: z.string().optional(),
 
   // Sign in with Apple REST API credentials, used to revoke tokens when an account is deleted.
   APPLE_TEAM_ID: z.string().default(''),
@@ -114,13 +123,18 @@ if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
   process.exit(1);
 }
 
-if (env.NODE_ENV === 'production') {
-  const missing = ['YOUTUBE_API_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'S3_BUCKET', 'SMTP_URL', 'DATA_ENCRYPTION_KEY'].filter((k) => !env[k]);
-  if (missing.length) {
-    console.error(`Missing production configuration: ${missing.join(', ')}`);
-    process.exit(1);
-  }
-}
+// Optional services: the server starts without them and the matching features
+// answer "not configured" until the keys are added.
+export const optionalServices = {
+  'YouTube search': ['YOUTUBE_API_KEY'],
+  'Subscriptions (Stripe)': ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'],
+  'Uploads and catalog streaming': ['S3_BUCKET'],
+  'Emails (verification, password reset)': ['SMTP_URL'],
+  'Apple sign-in token revocation': ['DATA_ENCRYPTION_KEY'],
+};
+export const disabledServices = Object.entries(optionalServices)
+  .filter(([, keys]) => keys.some((k) => !env[k]))
+  .map(([name]) => name);
 
 export const isProd = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';

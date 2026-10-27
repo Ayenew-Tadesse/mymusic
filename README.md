@@ -27,8 +27,9 @@ MyMusic plays two kinds of content, and treats each according to its rights:
 entirely in your browser (nothing is saved, no real accounts). It's the root `index.html`
 of this repository, a single self-contained file built by `npm run build:pages` in `web/`
 (re-run it and commit `index.html` after changing the web app). GitHub Pages only hosts static files, so the full app
-with accounts, uploads and payments needs the Node server: see *Run it locally* below or
-[DEPLOYMENT.md](docs/DEPLOYMENT.md).
+with accounts, uploads and payments needs the Node server: see *Run it locally* below, or
+put it online for free with MongoDB Atlas and Render in about 10 minutes
+([Quick launch](docs/DEPLOYMENT.md#quick-launch-free-mongodb-atlas--render)).
 
 ## Features
 

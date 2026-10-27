@@ -121,3 +121,30 @@ test('playlist ownership works with a populated owner', () => {
   p.collaborators.push(other._id);
   expect(p.canEdit(other._id)).toBe(true);
 });
+
+test('production boots with only the database, secrets and admin login', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const script = `
+    const env = (await import('./src/config/env.js')).default;
+    const { disabledServices } = await import('./src/config/env.js');
+    console.log(JSON.stringify({ url: env.PUBLIC_API_URL, autoIndex: env.DB_AUTO_INDEX, admin: env.ADMIN_EMAIL, disabled: disabledServices.length }));
+  `;
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: new URL('..', import.meta.url).pathname,
+    encoding: 'utf8',
+    env: {
+      PATH: process.env.PATH,
+      NODE_ENV: 'production',
+      MONGODB_URI: 'mongodb+srv://u:p@cluster.example.net/mymusic',
+      JWT_ACCESS_SECRET: 'G7vYq2nR8sKp4LmW1xZt9bQe6uHj3cAa0dFgVhNk5oP=',
+      JWT_REFRESH_SECRET: 'Zc1Xv2Bn3Mm4Ll5Kk6Jj7Hh8Gg9Ff0Dd1Ss2Aa3Qq4W=',
+      OFFLINE_KEY_SECRET: 'Pp9Oo8Ii7Uu6Yy5Tt4Rr3Ee2Ww1Qq0Aa9Ss8Dd7Ff6G=',
+      DB_AUTO_INDEX: 'true',
+      ADMIN_EMAIL: 'admin@example.com',
+      RENDER_EXTERNAL_URL: 'https://mymusic.onrender.com',
+    },
+  });
+  expect(r.status).toBe(0);
+  const out = JSON.parse(r.stdout.trim().split('\n').pop());
+  expect(out).toEqual({ url: 'https://mymusic.onrender.com', autoIndex: true, admin: 'admin@example.com', disabled: 5 });
+});
