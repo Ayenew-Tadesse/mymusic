@@ -1,0 +1,42 @@
+# Local development stack: MongoDB, MinIO (S3 compatible storage) and the API.
+# Usage: docker compose up --build   (API on http://localhost:4000)
+services:
+  mongo:
+    image: mongo:8
+    ports: ["27017:27017"]
+    volumes: [mongo-data:/data/db]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: mymusic
+      MINIO_ROOT_PASSWORD: mymusic-dev-password
+    volumes: [minio-data:/data]
+
+  # Creates the private bucket on first start.
+  minio-init:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: >
+      sh -c "sleep 3 && mc alias set local http://minio:9000 mymusic mymusic-dev-password &&
+             mc mb -p local/mymusic && mc anonymous set download local/mymusic/artwork || true"
+
+  api:
+    build: ./server
+    depends_on: [mongo, minio]
+    ports: ["4000:4000"]
+    env_file: ./server/.env
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongo:27017/mymusic
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: mymusic
+      S3_ACCESS_KEY_ID: mymusic
+      S3_SECRET_ACCESS_KEY: mymusic-dev-password
+      ASSET_PUBLIC_BASE_URL: http://localhost:9000/mymusic
+
+volumes:
+  mongo-data:
+  minio-data:

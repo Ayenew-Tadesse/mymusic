@@ -1,0 +1,48 @@
+{
+  "name": "mymusic-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MyMusic API: auth, catalog, playlists, YouTube metadata search, Stripe billing, admin",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "seed:admin": "node --env-file-if-exists=.env scripts/create-admin.js",
+    "db:indexes": "node --env-file-if-exists=.env scripts/sync-indexes.js",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js test/unit.test.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "testTimeout": 60000
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1157.0",
+    "@aws-sdk/s3-request-presigner": "^3.1157.0",
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "google-auth-library": "^11.3.1",
+    "helmet": "^8.3.0",
+    "jose": "^6.2.13",
+    "mongoose": "^8.24.7",
+    "nodemailer": "^10.2.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "stripe": "^23.0.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
+    "supertest": "^7.3.1"
+  }
+}

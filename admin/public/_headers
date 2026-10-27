@@ -1,0 +1,8 @@
+# Security headers for static hosts that read _headers (Netlify, Cloudflare Pages).
+# Replace https://api.mymusic.app with your API origin and S3 / CDN hosts.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://api.mymusic.app https://*.amazonaws.com https://*.r2.cloudflarestorage.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
