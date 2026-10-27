@@ -21,6 +21,14 @@ MyMusic plays two kinds of content, and treats each according to its rights:
 | Offline | Mobile apps only, for Premium users, when the licence allows it; encrypted on device | Never |
 | Stored by us | Audio file, metadata, rights | Only the video id; metadata is re-fetched from YouTube |
 
+## Try it
+
+**Web demo:** https://ayenew-tadesse.github.io/mymusic/ is the web app running on sample songs
+entirely in your browser (nothing is saved, no real accounts). It's rebuilt automatically from
+`main` by `.github/workflows/pages.yml`. GitHub Pages only hosts static files, so the full app
+with accounts, uploads and payments needs the Node server: see *Run it locally* below or
+[DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Features
 
 - **Accounts**: email + password, Sign in with Apple, Google sign-in; email verification, password reset, sign out everywhere, in-app account deletion, data export.
