@@ -61,13 +61,16 @@ playlistSchema.methods.canView = function canView(userId) {
   return this.canEdit(userId);
 };
 
+// Works whether `owner` / `collaborators` hold ids or populated documents.
+const idOf = (ref) => (ref?._id ?? ref)?.toString();
+
 playlistSchema.methods.isOwnedBy = function isOwnedBy(userId) {
-  return Boolean(userId) && this.owner.toString() === userId.toString();
+  return Boolean(userId) && idOf(this.owner) === idOf(userId);
 };
 
 playlistSchema.methods.canEdit = function canEdit(userId) {
   if (!userId) return false;
-  return this.isOwnedBy(userId) || this.collaborators.some((c) => c.toString() === userId.toString());
+  return this.isOwnedBy(userId) || this.collaborators.some((c) => idOf(c) === idOf(userId));
 };
 
 export default mongoose.model('Playlist', playlistSchema);

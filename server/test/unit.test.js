@@ -6,7 +6,7 @@ process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-0123456789abcdef012345678'
 process.env.OFFLINE_KEY_SECRET = 'a'.repeat(64);
 
 const { parseIsoDuration } = await import('../src/services/youtube.js');
-const { Track } = await import('../src/models/index.js');
+const { Track, Playlist, User } = await import('../src/models/index.js');
 const { contentKeyFor } = await import('../src/services/offlineKeys.js');
 const { signPurposeToken, verifyPurposeToken } = await import('../src/services/tokens.js');
 const { escapeHtml } = await import('../src/utils/crypto.js');
@@ -105,4 +105,19 @@ test('public config exposes no secrets', async () => {
   const res = await request(createApp()).get('/api/v1/config');
   expect(res.status).toBe(200);
   expect(Object.keys(res.body).sort()).toEqual(['appleServicesId', 'billingEnabled', 'googleClientId', 'youtubeEnabled']);
+});
+
+test('playlist ownership works with a populated owner', () => {
+  const owner = new User({ displayName: 'Owner' });
+  const other = new User({ displayName: 'Other' });
+  const p = new Playlist({ name: 'Mine', owner: owner._id });
+  // Simulate .populate('owner', 'displayName')
+  p.owner = owner;
+  expect(p.isOwnedBy(owner._id)).toBe(true);
+  expect(p.isOwnedBy(owner._id.toString())).toBe(true);
+  expect(p.canView(owner._id)).toBe(true);
+  expect(p.canEdit(other._id)).toBe(false);
+  expect(p.canView(other._id)).toBe(false);
+  p.collaborators.push(other._id);
+  expect(p.canEdit(other._id)).toBe(true);
 });
